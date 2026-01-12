@@ -5,7 +5,7 @@ Database schema migration tool for ClickHouse with version tracking. Executes SQ
 ## Installation
 
 ```sh
-go install github.com/qgs/dbmigrate@latest
+go install github.com/raugustinus/dbmigrate@latest
 ```
 
 ## Supported Database Engines
