@@ -355,7 +355,7 @@ func TestRunConfigStruct(t *testing.T) {
 		Host:         "db.example.com",
 		Port:         9001,
 		User:         "admin",
-		Password:     "secret",
+		Password:     "",
 		Database:     "testdb",
 		Path:         "/path/to/index.lst",
 		DataPath:     "/path/to/data",
@@ -374,7 +374,7 @@ func TestRunConfigStruct(t *testing.T) {
 	if cfg.User != "admin" {
 		t.Error("User not set correctly")
 	}
-	if cfg.Password != "secret" {
+	if cfg.Password != "" {
 		t.Error("Password not set correctly")
 	}
 	if cfg.Database != "testdb" {
@@ -432,7 +432,7 @@ func TestParseFlagsWithValues(t *testing.T) {
 		"-h", "db.example.com",
 		"-p", "9001",
 		"-U", "admin",
-		"-W", "secret",
+		"-W", "",
 		"-db", "testdb",
 		"-path", "/path/to/index.lst",
 		"-data", "/path/to/data",
@@ -458,7 +458,7 @@ func TestParseFlagsWithValues(t *testing.T) {
 	if cfg.User != "admin" {
 		t.Errorf("expected User 'admin', got %q", cfg.User)
 	}
-	if cfg.Password != "secret" {
+	if cfg.Password != "" {
 		t.Errorf("expected Password 'secret', got %q", cfg.Password)
 	}
 	if cfg.Database != "testdb" {
