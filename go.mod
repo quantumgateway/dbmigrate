@@ -1,4 +1,4 @@
-module github.com/qgs/dbmigrate
+module github.com/quantumgateway/dbmigrate
 
 go 1.25.5
 

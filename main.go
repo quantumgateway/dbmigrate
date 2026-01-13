@@ -1,6 +1,6 @@
 // dbmigrate - Database schema migration tool for ClickHouse
 //
-// Install: go install github.com/qgs/dbmigrate@latest
+// Install: go install github.com/quantumgateway/dbmigrate@latest
 //
 // Usage:
 //
