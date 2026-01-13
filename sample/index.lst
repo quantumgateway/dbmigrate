@@ -1,0 +1,4 @@
+# Sample ClickHouse Schema Migrations
+# The schema_versions table must be created first to enable version tracking
+schema_versions.sql
+sample.sql
