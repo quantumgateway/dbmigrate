@@ -10,7 +10,7 @@ go install github.com/quantumgateway/dbmigrate@latest
 
 ## Supported Database Engines
 
-- **ClickHouse** (`clickhouse`) - Default port: 9000, Default user: default, Default database: insights
+- **ClickHouse** (`clickhouse`) - Default port: 9000, Default user: default, Default database: mydatabase
 
 ## Usage
 
@@ -23,7 +23,7 @@ Options:
     -p          Port of the database server (0 = use default: 9000). Default: 0
     -U          Database username. Default: default
     -W          Database password (will prompt if not provided)
-    -db         Name of the database. Default: insights
+    -db         Name of the database. Default: mydatabase
     -path       Path to the root index.lst file. Default: ./index.lst
     -data       Path to directory containing CSV files for test data (optional)
     -version    Show current schema version and exit
@@ -37,19 +37,19 @@ Options:
 
 ```sh
 # Initialize schema (will prompt for password)
-dbmigrate -e clickhouse -h localhost -db insights -path ./sql/index.lst
+dbmigrate -e clickhouse -h localhost -db mydatabase -path ./sql/index.lst
 
 # Initialize with password
-dbmigrate -e clickhouse -h localhost -U default -W password -db insights -path ./sql/index.lst
+dbmigrate -e clickhouse -h localhost -U default -W password -db mydatabase -path ./sql/index.lst
 
 # Initialize with test data
-dbmigrate -e clickhouse -h localhost -db insights -path ./sql/index.lst -data ./testdata/csv
+dbmigrate -e clickhouse -h localhost -db mydatabase -path ./sql/index.lst -data ./testdata/csv
 ```
 
 ### Check Schema Version
 
 ```sh
-dbmigrate -e clickhouse -h localhost -db insights -version
+dbmigrate -e clickhouse -h localhost -db mydatabase -version
 ```
 
 Output:
@@ -67,7 +67,7 @@ Current: 2.0.15 (2024-12-11 23:45:00)
 
 ```sh
 # Skip version checks and re-run all migrations
-dbmigrate -e clickhouse -h localhost -db insights -path ./sql/index.lst -force
+dbmigrate -e clickhouse -h localhost -db mydatabase -path ./sql/index.lst -force
 ```
 
 ## Version Tracking

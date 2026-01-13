@@ -322,8 +322,8 @@ func TestDefaultRunConfig(t *testing.T) {
 	if cfg.Password != "" {
 		t.Error("expected Password to be empty")
 	}
-	if cfg.Database != "insights" {
-		t.Errorf("expected Database to be 'insights', got %q", cfg.Database)
+	if cfg.Database != "default" {
+		t.Errorf("expected Database to be 'default', got %q", cfg.Database)
 	}
 	if cfg.Path != "./index.lst" {
 		t.Errorf("expected Path to be './index.lst', got %q", cfg.Path)
@@ -888,8 +888,8 @@ func TestApplyDefaultsWithConfigClickHouseDefaults(t *testing.T) {
 	if cfg.User != "default" {
 		t.Errorf("expected User 'default', got %q", cfg.User)
 	}
-	if cfg.Database != "insights" {
-		t.Errorf("expected Database 'insights', got %q", cfg.Database)
+	if cfg.Database != "default" {
+		t.Errorf("expected Database 'default', got %q", cfg.Database)
 	}
 }
 

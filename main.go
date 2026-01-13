@@ -83,7 +83,7 @@ func DefaultRunConfig() RunConfig {
 		Port:     0,
 		User:     "default",
 		Password: "",
-		Database: "insights",
+		Database: "default",
 		Path:     "./index.lst",
 		DataPath: "",
 	}
@@ -98,13 +98,13 @@ func UsageWriter(w io.Writer, progName string, fs *flag.FlagSet) {
 	fs.PrintDefaults()
 	fmt.Fprintf(w, "\nExamples:\n")
 	fmt.Fprintf(w, "  # Initialize ClickHouse schema with credentials\n")
-	fmt.Fprintf(w, "  %s -e clickhouse -h localhost -U default -W password -db insights -path ./sql/index.lst\n\n", progName)
+	fmt.Fprintf(w, "  %s -e clickhouse -h localhost -U default -W password -db default -path ./sql/index.lst\n\n", progName)
 	fmt.Fprintf(w, "  # Show current schema version\n")
-	fmt.Fprintf(w, "  %s -e clickhouse -h localhost -db insights -version\n\n", progName)
+	fmt.Fprintf(w, "  %s -e clickhouse -h localhost -db default -version\n\n", progName)
 	fmt.Fprintf(w, "  # Force re-run migrations (skip version checks)\n")
-	fmt.Fprintf(w, "  %s -e clickhouse -h localhost -db insights -path ./sql/index.lst -force\n\n", progName)
+	fmt.Fprintf(w, "  %s -e clickhouse -h localhost -db default -path ./sql/index.lst -force\n\n", progName)
 	fmt.Fprintf(w, "  # Load test data from CSV files\n")
-	fmt.Fprintf(w, "  %s -e clickhouse -h localhost -db insights -path ./sql/index.lst -data ./testdata/csv\n", progName)
+	fmt.Fprintf(w, "  %s -e clickhouse -h localhost -db default -path ./sql/index.lst -data ./testdata/csv\n", progName)
 }
 
 func Usage() {
@@ -402,7 +402,7 @@ func applyDefaultsWithConfig(executor DatabaseExecutor, cfg *RunConfig) {
 			cfg.User = "default"
 		}
 		if cfg.Database == "" {
-			cfg.Database = "insights"
+			cfg.Database = "default"
 		}
 	}
 }
