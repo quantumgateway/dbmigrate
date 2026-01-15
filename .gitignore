@@ -1,0 +1,5 @@
+# Binary
+dbmigrate
+
+# Homebrew tap clone
+.homebrew-tap/
