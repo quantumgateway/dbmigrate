@@ -432,7 +432,8 @@ func TestParseFlagsWithValues(t *testing.T) {
 		"-h", "db.example.com",
 		"-p", "9001",
 		"-U", "admin",
-		"-W", "",
+		"-W",
+		"-password", "secret",
 		"-db", "testdb",
 		"-path", "/path/to/index.lst",
 		"-data", "/path/to/data",
@@ -458,7 +459,10 @@ func TestParseFlagsWithValues(t *testing.T) {
 	if cfg.User != "admin" {
 		t.Errorf("expected User 'admin', got %q", cfg.User)
 	}
-	if cfg.Password != "" {
+	if !cfg.PromptPassword {
+		t.Error("expected PromptPassword to be true")
+	}
+	if cfg.Password != "secret" {
 		t.Errorf("expected Password 'secret', got %q", cfg.Password)
 	}
 	if cfg.Database != "testdb" {

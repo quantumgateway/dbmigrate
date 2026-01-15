@@ -54,22 +54,23 @@ var (
 
 // RunConfig holds configuration for the run function
 type RunConfig struct {
-	Stdout       io.Writer
-	Stderr       io.Writer
-	Stdin        io.Reader
-	Args         []string
-	Engine       string
-	Host         string
-	Port         int
-	User         string
-	Password     string
-	Database     string
-	Path         string
-	DataPath     string
-	ShowVersion  bool
-	Force        bool
-	Debug        bool
-	SkipPassword bool // Skip password prompt (for testing)
+	Stdout         io.Writer
+	Stderr         io.Writer
+	Stdin          io.Reader
+	Args           []string
+	Engine         string
+	Host           string
+	Port           int
+	User           string
+	Password       string
+	Database       string
+	Path           string
+	DataPath       string
+	ShowVersion    bool
+	Force          bool
+	Debug          bool
+	SkipPassword   bool // Skip password prompt (for testing)
+	PromptPassword bool // -W flag: prompt for password
 }
 
 // DefaultRunConfig returns a RunConfig with default values
@@ -97,8 +98,10 @@ func UsageWriter(w io.Writer, progName string, fs *flag.FlagSet) {
 	fs.SetOutput(w)
 	fs.PrintDefaults()
 	fmt.Fprintf(w, "\nExamples:\n")
-	fmt.Fprintf(w, "  # Initialize ClickHouse schema with credentials\n")
-	fmt.Fprintf(w, "  %s -e clickhouse -h localhost -U default -W password -db default -path ./sql/index.lst\n\n", progName)
+	fmt.Fprintf(w, "  # Initialize ClickHouse schema with password prompt\n")
+	fmt.Fprintf(w, "  %s -e clickhouse -h localhost -U default -W -db default -path ./sql/index.lst\n\n", progName)
+	fmt.Fprintf(w, "  # Initialize ClickHouse schema with password on command line\n")
+	fmt.Fprintf(w, "  %s -e clickhouse -h localhost -U default -password mypass -db default -path ./sql/index.lst\n\n", progName)
 	fmt.Fprintf(w, "  # Show current schema version\n")
 	fmt.Fprintf(w, "  %s -e clickhouse -h localhost -db default -version\n\n", progName)
 	fmt.Fprintf(w, "  # Force re-run migrations (skip version checks)\n")
@@ -129,7 +132,8 @@ func parseFlags(args []string, cfg *RunConfig) (*flag.FlagSet, error) {
 	fs.StringVar(&cfg.Host, "h", cfg.Host, "Hostname of the database server")
 	fs.IntVar(&cfg.Port, "p", cfg.Port, "Port the database server listens to (0 = use default: 9000)")
 	fs.StringVar(&cfg.User, "U", cfg.User, "Database username")
-	fs.StringVar(&cfg.Password, "W", cfg.Password, "Database password (if not provided, will prompt)")
+	fs.BoolVar(&cfg.PromptPassword, "W", cfg.PromptPassword, "Prompt for password")
+	fs.StringVar(&cfg.Password, "password", cfg.Password, "Database password (alternative to -W prompt)")
 	fs.StringVar(&cfg.Database, "db", cfg.Database, "Database name")
 	fs.StringVar(&cfg.Path, "path", cfg.Path, "Path to the index.lst file containing SQL files to execute")
 	fs.StringVar(&cfg.DataPath, "data", cfg.DataPath, "Path to directory containing CSV files for test/development data (optional)")
@@ -175,8 +179,8 @@ func run(cfg RunConfig) int {
 	// Apply defaults based on engine
 	applyDefaultsWithConfig(executor, &cfg)
 
-	// Prompt for password if not provided and not skipping
-	if len(cfg.Password) == 0 && !cfg.SkipPassword {
+	// Prompt for password if -W flag is set and password not already provided
+	if cfg.PromptPassword && len(cfg.Password) == 0 && !cfg.SkipPassword {
 		fmt.Fprintf(cfg.Stdout, "Password for user %s: ", cfg.User)
 		bytepw, err := term.ReadPassword(syscall.Stdin)
 		fmt.Fprintln(cfg.Stdout) // New line after password input
