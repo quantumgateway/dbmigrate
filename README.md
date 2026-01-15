@@ -8,6 +8,12 @@ Database schema migration tool for ClickHouse with version tracking. Executes SQ
 go install github.com/quantumgateway/dbmigrate@latest
 ```
 
+### Brew installation
+```sh
+brew tap quantumgateway/tap
+brew install dbmigrate
+```
+
 ## Supported Database Engines
 
 - **ClickHouse** (`clickhouse`) - Default port: 9000, Default user: default, Default database: mydatabase
