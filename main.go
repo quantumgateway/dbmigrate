@@ -30,6 +30,18 @@ import (
 // Version is set at build time
 var Version = "dev"
 
+// ANSI color codes
+const (
+	colorReset  = "\033[0m"
+	colorRed    = "\033[31m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+	colorBlue   = "\033[34m"
+	colorCyan   = "\033[36m"
+	colorDim    = "\033[2m"
+	colorBold   = "\033[1m"
+)
+
 type DbEngine string
 
 const (
@@ -209,7 +221,7 @@ func run(cfg RunConfig) int {
 	if err != nil {
 		// Table might not exist yet, continue with empty map
 		if cfg.Debug {
-			fmt.Fprintf(cfg.Stdout, "Note: Could not query schema_versions (table may not exist yet): %v\n", err)
+			fmt.Fprintf(cfg.Stdout, "%sNote: Could not query schema_versions (table may not exist yet): %v%s\n", colorDim, err, colorReset)
 		}
 		appliedMigrations = make(map[string]string)
 	}
@@ -218,62 +230,76 @@ func run(cfg RunConfig) int {
 	var sqlfiles = &[]string{}
 	err = processWithWriter(cfg.Path, sqlfiles, cfg.Stdout, cfg.Debug)
 	if err != nil {
-		fmt.Fprintf(cfg.Stderr, "Error processing index file: %s\n", err)
+		fmt.Fprintf(cfg.Stderr, "%sError:%s %s\n", colorRed, colorReset, err)
 		return 1
 	}
 
 	// Execute each SQL file
-	migrationsApplied := 0
-	migrationsSkipped := 0
+	var appliedFiles []string
+	var skippedFiles []string
+	totalStatements := 0
+
 	for _, sqlFile := range *sqlfiles {
 		info, err := parseMigrationInfo(sqlFile)
 		if err != nil {
-			fmt.Fprintf(cfg.Stdout, "Warning: Could not parse migration info from %s: %v\n", sqlFile, err)
+			fmt.Fprintf(cfg.Stdout, "%sWarning:%s Could not parse migration info from %s: %v\n", colorYellow, colorReset, filepath.Base(sqlFile), err)
 		}
 
 		// Check if migration was already applied
 		if !cfg.Force && info.Version != "" {
 			if existingChecksum, exists := appliedMigrations[info.Version]; exists {
 				if existingChecksum == info.Checksum {
-					if cfg.Debug {
-						fmt.Fprintf(cfg.Stdout, "Skipping %s (version %s already applied)\n", filepath.Base(sqlFile), info.Version)
-					}
-					migrationsSkipped++
+					skippedFiles = append(skippedFiles, filepath.Base(sqlFile))
 					continue
 				} else {
-					fmt.Fprintf(cfg.Stderr, "WARNING: Checksum mismatch for version %s\n", info.Version)
+					fmt.Fprintf(cfg.Stderr, "\n%sChecksum mismatch for version %s%s\n", colorRed, info.Version, colorReset)
 					fmt.Fprintf(cfg.Stderr, "  File: %s\n", sqlFile)
-					fmt.Fprintf(cfg.Stderr, "  Expected checksum: %s\n", existingChecksum)
-					fmt.Fprintf(cfg.Stderr, "  Current checksum:  %s\n", info.Checksum)
-					fmt.Fprintf(cfg.Stderr, "  Use -force to re-apply this migration\n")
+					fmt.Fprintf(cfg.Stderr, "  Expected: %s\n", existingChecksum)
+					fmt.Fprintf(cfg.Stderr, "  Got:      %s\n", info.Checksum)
+					fmt.Fprintf(cfg.Stderr, "  Use -force to re-apply\n")
 					return 1
 				}
 			}
 		}
 
-		err = executeSQLWithWriter(executor, sqlFile, cfg.Stdout, cfg.Debug)
+		stmtCount, err := executeSQLWithWriter(executor, sqlFile, cfg.Stdout, cfg.Debug)
 		if err != nil {
-			fmt.Fprintf(cfg.Stderr, "Error executing %s: %s\n", sqlFile, err)
+			fmt.Fprintf(cfg.Stderr, "%sError:%s %s: %s\n", colorRed, colorReset, filepath.Base(sqlFile), err)
 			return 1
 		}
+		totalStatements += stmtCount
 
 		// Record the migration if it has version info
 		if info.Version != "" {
 			err = recordMigration(executor, info)
 			if err != nil {
-				fmt.Fprintf(cfg.Stdout, "Warning: Could not record migration %s: %v\n", info.Version, err)
+				fmt.Fprintf(cfg.Stdout, "%sWarning:%s Could not record migration %s: %v\n", colorYellow, colorReset, info.Version, err)
 			}
 		}
-		migrationsApplied++
+		appliedFiles = append(appliedFiles, filepath.Base(sqlFile))
 	}
 
-	fmt.Fprintf(cfg.Stdout, "\nMigration complete: %d applied, %d skipped\n", migrationsApplied, migrationsSkipped)
+	// Print summary
+	fmt.Fprintln(cfg.Stdout)
+	if len(appliedFiles) > 0 {
+		fmt.Fprintf(cfg.Stdout, "%sApplied %d file(s):%s\n", colorGreen, len(appliedFiles), colorReset)
+		for _, f := range appliedFiles {
+			fmt.Fprintf(cfg.Stdout, "  %s✓%s %s\n", colorGreen, colorReset, f)
+		}
+	}
+	if len(skippedFiles) > 0 {
+		fmt.Fprintf(cfg.Stdout, "%sSkipped %d file(s):%s\n", colorDim, len(skippedFiles), colorReset)
+		for _, f := range skippedFiles {
+			fmt.Fprintf(cfg.Stdout, "  %s- %s%s\n", colorDim, f, colorReset)
+		}
+	}
+	fmt.Fprintf(cfg.Stdout, "\n%s✓ Migration complete%s (%d statements)\n", colorGreen, colorReset, totalStatements)
 
 	// Load CSV data if path is provided
 	if cfg.DataPath != "" {
 		err = loadCSVDataWithWriter(executor, cfg.DataPath, cfg.Stdout, cfg.Debug)
 		if err != nil {
-			fmt.Fprintf(cfg.Stderr, "Error loading CSV data: %s\n", err)
+			fmt.Fprintf(cfg.Stderr, "%sError:%s %s\n", colorRed, colorReset, err)
 			return 1
 		}
 	}
@@ -442,7 +468,7 @@ func (e *ClickHouseExecutor) Connect(host string, port int, database string, use
 	if err != nil {
 		return fmt.Errorf("failed to connect to ClickHouse: %w", err)
 	}
-	fmt.Printf("Connected to ClickHouse: %s@%s:%d/%s\n", username, host, port, database)
+	fmt.Printf("%s✓%s Connected to %s%s@%s:%d/%s%s\n", colorGreen, colorReset, colorCyan, username, host, port, database, colorReset)
 	return nil
 }
 
@@ -502,13 +528,14 @@ func (e *ClickHouseExecutor) DefaultPort() int {
 func processWithWriter(path string, sqlfiles *[]string, w io.Writer, debug bool) error {
 	file, err := os.Open(path)
 	if err != nil {
-		fmt.Fprintf(w, "Error opening file: %s\n", err)
 		return err
 	}
 	defer file.Close()
 
 	dir := filepath.Dir(file.Name())
-	fmt.Fprintf(w, "Processing file: %v in dir: %v\n", file.Name(), dir)
+	if debug {
+		fmt.Fprintf(w, "%sProcessing: %v%s\n", colorDim, file.Name(), colorReset)
+	}
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -524,12 +551,9 @@ func processWithWriter(path string, sqlfiles *[]string, w io.Writer, debug bool)
 				return err
 			}
 		} else if strings.HasSuffix(fileName, ".sql") {
-			if debug {
-				fmt.Fprintf(w, "Adding SQL file: %v\n", fileName)
-			}
 			*sqlfiles = append(*sqlfiles, filepath.Join(dir, fileName))
 		} else {
-			fmt.Fprintf(w, "Warning: unknown file type: %v\n", fileName)
+			fmt.Fprintf(w, "%sWarning: unknown file type: %v%s\n", colorYellow, fileName, colorReset)
 		}
 	}
 
@@ -541,18 +565,18 @@ func processWithWriter(path string, sqlfiles *[]string, w io.Writer, debug bool)
 }
 
 // executeSQLWithWriter reads and executes a SQL file using the provided executor and writer
-func executeSQLWithWriter(executor DatabaseExecutor, path string, w io.Writer, debug bool) error {
-	fmt.Fprintf(w, "Executing SQL file: %v\n", path)
-
+// Returns the number of statements executed
+func executeSQLWithWriter(executor DatabaseExecutor, path string, w io.Writer, debug bool) (int, error) {
 	sql, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read SQL file: %w", err)
+		return 0, fmt.Errorf("failed to read SQL file: %w", err)
 	}
 
 	// Split SQL content into individual statements
 	statements := splitSQLStatements(string(sql))
 
 	// Execute each statement separately
+	executed := 0
 	for i, stmt := range statements {
 		stmt = strings.TrimSpace(stmt)
 		if stmt == "" {
@@ -560,17 +584,17 @@ func executeSQLWithWriter(executor DatabaseExecutor, path string, w io.Writer, d
 		}
 
 		if debug {
-			fmt.Fprintf(w, "  Executing statement %d/%d\n", i+1, len(statements))
+			fmt.Fprintf(w, "  %sExecuting statement %d/%d%s\n", colorDim, i+1, len(statements), colorReset)
 		}
 
 		err = executor.Execute(ctxbg, stmt)
 		if err != nil {
-			return fmt.Errorf("statement %d failed: %w", i+1, err)
+			return executed, fmt.Errorf("statement %d failed: %w", i+1, err)
 		}
+		executed++
 	}
 
-	fmt.Fprintf(w, "Successfully executed: %v (%d statements)\n", path, len(statements))
-	return nil
+	return executed, nil
 }
 
 // splitSQLStatements splits SQL content by semicolons while respecting string literals
@@ -657,8 +681,6 @@ func splitSQLStatements(sql string) []string {
 
 // loadCSVDataWithWriter reads CSV files from a directory and loads them into database tables
 func loadCSVDataWithWriter(executor DatabaseExecutor, dataDir string, w io.Writer, debug bool) error {
-	fmt.Fprintf(w, "Loading CSV data from: %v\n", dataDir)
-
 	// Read directory contents
 	entries, err := os.ReadDir(dataDir)
 	if err != nil {
@@ -666,7 +688,8 @@ func loadCSVDataWithWriter(executor DatabaseExecutor, dataDir string, w io.Write
 	}
 
 	// Process each CSV file
-	csvCount := 0
+	var loadedFiles []string
+	totalRows := 0
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".csv") {
 			continue
@@ -675,29 +698,34 @@ func loadCSVDataWithWriter(executor DatabaseExecutor, dataDir string, w io.Write
 		csvPath := filepath.Join(dataDir, entry.Name())
 		tableName := strings.TrimSuffix(entry.Name(), ".csv")
 
-		err = loadCSVFileWithWriter(executor, csvPath, tableName, w, debug)
+		rows, err := loadCSVFileWithWriter(executor, csvPath, tableName, w, debug)
 		if err != nil {
 			return fmt.Errorf("failed to load %s: %w", entry.Name(), err)
 		}
-		csvCount++
+		loadedFiles = append(loadedFiles, fmt.Sprintf("%s (%d rows)", entry.Name(), rows))
+		totalRows += rows
 	}
 
-	if csvCount == 0 {
-		fmt.Fprintln(w, "No CSV files found in data directory")
+	// Print summary
+	if len(loadedFiles) == 0 {
+		fmt.Fprintf(w, "%sNo CSV files found in data directory%s\n", colorYellow, colorReset)
 	} else {
-		fmt.Fprintf(w, "Successfully loaded %d CSV files\n", csvCount)
+		fmt.Fprintf(w, "\n%sLoaded %d CSV file(s):%s\n", colorGreen, len(loadedFiles), colorReset)
+		for _, f := range loadedFiles {
+			fmt.Fprintf(w, "  %s✓%s %s\n", colorGreen, colorReset, f)
+		}
+		fmt.Fprintf(w, "%s✓ Data load complete%s (%d total rows)\n", colorGreen, colorReset, totalRows)
 	}
 
 	return nil
 }
 
 // loadCSVFileWithWriter reads a CSV file and inserts rows into the specified table
-func loadCSVFileWithWriter(executor DatabaseExecutor, csvPath string, tableName string, w io.Writer, debug bool) error {
-	fmt.Fprintf(w, "Loading CSV file: %v into table: %v\n", csvPath, tableName)
-
+// Returns the number of rows loaded
+func loadCSVFileWithWriter(executor DatabaseExecutor, csvPath string, tableName string, w io.Writer, debug bool) (int, error) {
 	file, err := os.Open(csvPath)
 	if err != nil {
-		return fmt.Errorf("failed to open CSV file: %w", err)
+		return 0, fmt.Errorf("failed to open CSV file: %w", err)
 	}
 	defer file.Close()
 
@@ -706,11 +734,11 @@ func loadCSVFileWithWriter(executor DatabaseExecutor, csvPath string, tableName 
 	// Read header row to get column names
 	headers, err := reader.Read()
 	if err != nil {
-		return fmt.Errorf("failed to read CSV headers: %w", err)
+		return 0, fmt.Errorf("failed to read CSV headers: %w", err)
 	}
 
 	if len(headers) == 0 {
-		return fmt.Errorf("CSV file has no columns")
+		return 0, fmt.Errorf("CSV file has no columns")
 	}
 
 	// Read all data rows first
@@ -721,19 +749,18 @@ func loadCSVFileWithWriter(executor DatabaseExecutor, csvPath string, tableName 
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("error reading CSV: %w", err)
+			return 0, fmt.Errorf("error reading CSV: %w", err)
 		}
 
 		if len(record) != len(headers) {
-			return fmt.Errorf("row has %d columns, expected %d", len(record), len(headers))
+			return 0, fmt.Errorf("row has %d columns, expected %d", len(record), len(headers))
 		}
 
 		records = append(records, record)
 	}
 
 	if len(records) == 0 {
-		fmt.Fprintf(w, "No data rows found in %s\n", csvPath)
-		return nil
+		return 0, nil
 	}
 
 	// Build INSERT statement with VALUES format for all rows
@@ -755,15 +782,14 @@ func loadCSVFileWithWriter(executor DatabaseExecutor, csvPath string, tableName 
 	insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s", tableName, columnList, strings.Join(valueGroups, ", "))
 
 	if debug {
-		fmt.Fprintf(w, "  Inserting %d rows into %s\n", len(records), tableName)
+		fmt.Fprintf(w, "  %sInserting %d rows into %s%s\n", colorDim, len(records), tableName, colorReset)
 	}
 
 	// Execute batch insert
 	err = executor.Execute(ctxbg, insertSQL)
 	if err != nil {
-		return fmt.Errorf("failed to insert rows: %w", err)
+		return 0, fmt.Errorf("failed to insert rows: %w", err)
 	}
 
-	fmt.Fprintf(w, "Successfully loaded %d rows into %s\n", len(records), tableName)
-	return nil
+	return len(records), nil
 }

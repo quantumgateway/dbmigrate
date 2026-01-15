@@ -19,7 +19,8 @@ func process(path string, sqlfiles *[]string) error {
 
 // executeSQL is a helper for backward compatibility in tests
 func executeSQL(executor DatabaseExecutor, path string) error {
-	return executeSQLWithWriter(executor, path, io.Discard, false)
+	_, err := executeSQLWithWriter(executor, path, io.Discard, false)
+	return err
 }
 
 func TestProcess(t *testing.T) {
@@ -916,9 +917,13 @@ func TestLoadCSVFileWithWriter(t *testing.T) {
 	mock := &MockExecutor{}
 	var stdout bytes.Buffer
 
-	err := loadCSVFileWithWriter(mock, csvFile, "test_table", &stdout, false)
+	rows, err := loadCSVFileWithWriter(mock, csvFile, "test_table", &stdout, false)
 	if err != nil {
 		t.Fatalf("loadCSVFileWithWriter failed: %v", err)
+	}
+
+	if rows != 2 {
+		t.Errorf("expected 2 rows loaded, got %d", rows)
 	}
 
 	if len(mock.executedSQL) != 1 {
@@ -949,9 +954,13 @@ func TestLoadCSVFileEmptyData(t *testing.T) {
 	mock := &MockExecutor{}
 	var stdout bytes.Buffer
 
-	err := loadCSVFileWithWriter(mock, csvFile, "test_table", &stdout, false)
+	rows, err := loadCSVFileWithWriter(mock, csvFile, "test_table", &stdout, false)
 	if err != nil {
 		t.Fatalf("loadCSVFileWithWriter failed: %v", err)
+	}
+
+	if rows != 0 {
+		t.Errorf("expected 0 rows for empty data, got %d", rows)
 	}
 
 	// No SQL should be executed for empty data
@@ -964,7 +973,7 @@ func TestLoadCSVFileNotFound(t *testing.T) {
 	mock := &MockExecutor{}
 	var stdout bytes.Buffer
 
-	err := loadCSVFileWithWriter(mock, "/nonexistent/file.csv", "table", &stdout, false)
+	_, err := loadCSVFileWithWriter(mock, "/nonexistent/file.csv", "table", &stdout, false)
 	if err == nil {
 		t.Error("expected error for nonexistent file")
 	}
@@ -984,7 +993,7 @@ func TestLoadCSVFileWithQuotes(t *testing.T) {
 	mock := &MockExecutor{}
 	var stdout bytes.Buffer
 
-	err := loadCSVFileWithWriter(mock, csvFile, "test_table", &stdout, false)
+	_, err := loadCSVFileWithWriter(mock, csvFile, "test_table", &stdout, false)
 	if err != nil {
 		t.Fatalf("loadCSVFileWithWriter failed: %v", err)
 	}
